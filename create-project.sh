@@ -169,16 +169,8 @@ log_info "Saving credentials to ${PROJECT}.json..."
 cat > ${PROJECT}.json << EOF
 {
   "database": "$DB",
-  "reader": {
-    "uri": "mongodb://${READER_USER}:${READER_PASS}@localhost:${PORT:-27017}/$DB",
-    "user": "$READER_USER",
-    "password": "$READER_PASS"
-  },
-  "writer": {
-    "uri": "mongodb://${WRITER_USER}:${WRITER_PASS}@localhost:${PORT:-27017}/$DB",
-    "user": "$WRITER_USER",
-    "password": "$WRITER_PASS"
-  }
+  "readerUri": "mongodb://${READER_USER}:${READER_PASS}@localhost:${PORT:-27017}/$DB",
+  "writerUri": "mongodb://${WRITER_USER}:${WRITER_PASS}@localhost:${PORT:-27017}/$DB"
 }
 EOF
 
