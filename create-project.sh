@@ -11,19 +11,19 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 log_info() {
-    echo "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${NC} $1"
 }
 
 log_success() {
-    echo "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
 log_error() {
-    echo "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} $1"
 }
 
 log_warning() {
-    echo "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
 # Parse arguments
@@ -104,6 +104,7 @@ if [ "$READER_EXISTS" = true ] || [ "$WRITER_EXISTS" = true ]; then
         echo ""
         echo "3. Check existing credentials:"
         echo "   cat ${PROJECT}.env"
+        echo "   cat ${PROJECT}.json"
         echo ""
         echo "4. Manually delete users:"
         echo "   docker exec -i mongodb mongosh -u $ROOT_NAME -p '$ROOT_PASSWORD' <<EOF"
@@ -144,7 +145,7 @@ EOF
 
 log_success "Database '$DB' created with users"
 
-# Save credentials
+# Save credentials to .env
 log_info "Saving credentials to ${PROJECT}.env..."
 cat > ${PROJECT}.env << EOF
 # MongoDB credentials for $PROJECT
@@ -162,6 +163,26 @@ WRITER_PASSWORD=$WRITER_PASS
 EOF
 
 log_success "Credentials saved to ${PROJECT}.env"
+
+# Save credentials to JSON
+log_info "Saving credentials to ${PROJECT}.json..."
+cat > ${PROJECT}.json << EOF
+{
+  "database": "$DB",
+  "reader": {
+    "uri": "mongodb://${READER_USER}:${READER_PASS}@localhost:${PORT:-27017}/$DB",
+    "user": "$READER_USER",
+    "password": "$READER_PASS"
+  },
+  "writer": {
+    "uri": "mongodb://${WRITER_USER}:${WRITER_PASS}@localhost:${PORT:-27017}/$DB",
+    "user": "$WRITER_USER",
+    "password": "$WRITER_PASS"
+  }
+}
+EOF
+
+log_success "Credentials saved to ${PROJECT}.json"
 
 # Summary
 echo ""

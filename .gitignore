@@ -1,12 +1,12 @@
 # Environment
 .env
+
+# Credentials
+*.json
 *.env
 
 # Data
 data/
-
-# Logs
-*.log
 
 # OS
 .DS_Store
