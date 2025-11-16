@@ -168,7 +168,6 @@ log_success "Credentials saved to ${PROJECT}.env"
 log_info "Saving credentials to ${PROJECT}.json..."
 cat > ${PROJECT}.json << EOF
 {
-  "database": "$DB",
   "readerUri": "mongodb://${READER_USER}:${READER_PASS}@localhost:${PORT:-27017}/$DB",
   "writerUri": "mongodb://${WRITER_USER}:${WRITER_PASS}@localhost:${PORT:-27017}/$DB"
 }
