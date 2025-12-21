@@ -29,6 +29,12 @@ log_warning() {
 CERTS_DIR="./certs"
 DAYS_VALID=365
 HOSTNAME=${1:-localhost}
+EXTERNAL_IP=${2:-$(
+    ip -4 addr show scope global 2>/dev/null | grep -oP 'inet \K[\d.]+' | head -1 ||
+    hostname -I 2>/dev/null | awk '{print $1}' ||
+    curl -4 -s --max-time 3 ifconfig.me 2>/dev/null ||
+    echo ""
+)}
 
 if [ -d "$CERTS_DIR" ] && [ -f "$CERTS_DIR/mongodb.pem" ]; then
     log_error "Certificates already exist in $CERTS_DIR"
@@ -60,8 +66,8 @@ prompt = no
 CN = $HOSTNAME
 
 [v3_req]
-keyUsage = keyEncipherment, dataEncipherment
-extendedKeyUsage = serverAuth
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth, clientAuth
 subjectAltName = @alt_names
 
 [alt_names]
@@ -69,6 +75,7 @@ DNS.1 = $HOSTNAME
 DNS.2 = localhost
 DNS.3 = mongodb
 IP.1 = 127.0.0.1
+IP.2 = $EXTERNAL_IP
 EOF
 
 openssl req -new -key "$CERTS_DIR/server.key" \
@@ -86,7 +93,9 @@ openssl x509 -req -days $DAYS_VALID \
 
 log_info "Creating MongoDB PEM file..."
 cat "$CERTS_DIR/server.key" "$CERTS_DIR/server.crt" > "$CERTS_DIR/mongodb.pem"
-chmod 600 "$CERTS_DIR/mongodb.pem"
+
+log_info "Setting permissions..."
+chmod 644 "$CERTS_DIR/mongodb.pem" "$CERTS_DIR/ca.crt"
 
 # Cleanup intermediate files
 rm -f "$CERTS_DIR/server.csr" "$CERTS_DIR/server.cnf" "$CERTS_DIR/ca.srl"

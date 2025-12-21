@@ -12,8 +12,14 @@ services:
     volumes:
       - ./data:/data/db
       - ./certs:/certs:ro
-      - ./entrypoint.sh:/entrypoint.sh:ro
-    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    command: >
+      bash -c '
+      if [ "$TLS_ENABLED" = "true" ]; then
+        docker-entrypoint.sh mongod --tlsMode requireTLS --tlsCertificateKeyFile /certs/mongodb.pem --tlsCAFile /certs/ca.crt --tlsAllowConnectionsWithoutCertificates --bind_ip_all
+      else
+        docker-entrypoint.sh mongod --bind_ip_all
+      fi
+      '
     networks:
       - mongo_net
 

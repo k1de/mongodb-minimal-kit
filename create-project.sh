@@ -63,7 +63,7 @@ TLS_OPTS=""
 TLS_URI_PARAM=""
 if [ "$TLS_ENABLED" = "true" ]; then
     TLS_OPTS="--tls --tlsCAFile /certs/ca.crt --tlsAllowInvalidHostnames"
-    TLS_URI_PARAM="?tls=true&tlsCAFile=/path/to/ca.crt"
+    TLS_URI_PARAM="?tls=true"
     log_info "TLS mode enabled"
 fi
 
@@ -130,8 +130,8 @@ fi
 
 # Generate passwords
 log_info "Generating secure passwords..."
-READER_PASS=$(openssl rand -hex 16 | md5sum | cut -d' ' -f1)
-WRITER_PASS=$(openssl rand -hex 16 | md5sum | cut -d' ' -f1)
+READER_PASS=$(openssl rand -hex 16)
+WRITER_PASS=$(openssl rand -hex 16)
 log_success "Passwords generated"
 
 # Create database and users
