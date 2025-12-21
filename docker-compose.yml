@@ -8,8 +8,12 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${ROOT_NAME}
       MONGO_INITDB_ROOT_PASSWORD: ${ROOT_PASSWORD}
+      TLS_ENABLED: ${TLS_ENABLED:-false}
     volumes:
       - ./data:/data/db
+      - ./certs:/certs:ro
+      - ./entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
     networks:
       - mongo_net
 

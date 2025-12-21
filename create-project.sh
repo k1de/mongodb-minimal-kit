@@ -58,6 +58,15 @@ fi
 
 source .env
 
+# Build TLS options for mongosh
+TLS_OPTS=""
+TLS_URI_PARAM=""
+if [ "$TLS_ENABLED" = "true" ]; then
+    TLS_OPTS="--tls --tlsCAFile /certs/ca.crt --tlsAllowInvalidHostnames"
+    TLS_URI_PARAM="?tls=true&tlsCAFile=/path/to/ca.crt"
+    log_info "TLS mode enabled"
+fi
+
 log_info "Loaded environment variables from .env"
 log_info "Database name: $DB"
 log_info "Reader user: $READER_USER"
@@ -65,7 +74,7 @@ log_info "Writer user: $WRITER_USER"
 
 # Check if MongoDB is running
 log_info "Checking MongoDB connection..."
-if ! docker exec mongodb mongosh -u $ROOT_NAME -p $ROOT_PASSWORD --quiet --eval "db.version()" > /dev/null 2>&1; then
+if ! docker exec mongodb mongosh -u $ROOT_NAME -p $ROOT_PASSWORD $TLS_OPTS --quiet --eval "db.version()" > /dev/null 2>&1; then
     log_error "Cannot connect to MongoDB. Is the container running?"
     exit 1
 fi
@@ -74,18 +83,18 @@ log_success "MongoDB connection successful"
 # Check if users already exist
 log_info "Checking if users already exist..."
 
-READER_EXISTS=$(docker exec -i mongodb mongosh -u $ROOT_NAME -p $ROOT_PASSWORD --quiet --eval "use('$DB'); db.getUser('$READER_USER') ? 'true' : 'false'")
-WRITER_EXISTS=$(docker exec -i mongodb mongosh -u $ROOT_NAME -p $ROOT_PASSWORD --quiet --eval "use('$DB'); db.getUser('$WRITER_USER') ? 'true' : 'false'")
+READER_EXISTS=$(docker exec -i mongodb mongosh -u $ROOT_NAME -p $ROOT_PASSWORD $TLS_OPTS --quiet --eval "use('$DB'); db.getUser('$READER_USER') ? 'true' : 'false'")
+WRITER_EXISTS=$(docker exec -i mongodb mongosh -u $ROOT_NAME -p $ROOT_PASSWORD $TLS_OPTS --quiet --eval "use('$DB'); db.getUser('$WRITER_USER') ? 'true' : 'false'")
 
 if [ "$READER_EXISTS" = true ] || [ "$WRITER_EXISTS" = true ]; then
     if [ "$FORCE" = true ]; then
         log_warning "Users exist, deleting them..."
         if [ "$READER_EXISTS" = true ]; then
-            docker exec -i mongodb mongosh -u $ROOT_NAME -p $ROOT_PASSWORD --quiet --eval "use('$DB'); db.dropUser('$READER_USER')"
+            docker exec -i mongodb mongosh -u $ROOT_NAME -p $ROOT_PASSWORD $TLS_OPTS --quiet --eval "use('$DB'); db.dropUser('$READER_USER')"
             log_success "Deleted user: $READER_USER"
         fi
         if [ "$WRITER_EXISTS" = true ]; then
-            docker exec -i mongodb mongosh -u $ROOT_NAME -p $ROOT_PASSWORD --quiet --eval "use('$DB'); db.dropUser('$WRITER_USER')"
+            docker exec -i mongodb mongosh -u $ROOT_NAME -p $ROOT_PASSWORD $TLS_OPTS --quiet --eval "use('$DB'); db.dropUser('$WRITER_USER')"
             log_success "Deleted user: $WRITER_USER"
         fi
     else
@@ -128,7 +137,7 @@ log_success "Passwords generated"
 # Create database and users
 log_info "Creating database and users in MongoDB..."
 
-docker exec -i mongodb mongosh -u $ROOT_NAME -p $ROOT_PASSWORD --quiet <<EOF
+docker exec -i mongodb mongosh -u $ROOT_NAME -p $ROOT_PASSWORD $TLS_OPTS --quiet <<EOF
 use $DB
 db.createUser({
   user: "$READER_USER",
@@ -152,8 +161,8 @@ cat > ${PROJECT}.env << EOF
 # Generated: $(date)
 
 DATABASE=$DB
-READER_URI=mongodb://${READER_USER}:${READER_PASS}@localhost:${PORT:-27017}/$DB
-WRITER_URI=mongodb://${WRITER_USER}:${WRITER_PASS}@localhost:${PORT:-27017}/$DB
+READER_URI=mongodb://${READER_USER}:${READER_PASS}@localhost:${PORT:-27017}/$DB${TLS_URI_PARAM}
+WRITER_URI=mongodb://${WRITER_USER}:${WRITER_PASS}@localhost:${PORT:-27017}/$DB${TLS_URI_PARAM}
 
 # Individual credentials
 READER_USER=$READER_USER
@@ -168,8 +177,8 @@ log_success "Credentials saved to ${PROJECT}.env"
 log_info "Saving credentials to ${PROJECT}.json..."
 cat > ${PROJECT}.json << EOF
 {
-  "readerUri": "mongodb://${READER_USER}:${READER_PASS}@localhost:${PORT:-27017}/$DB",
-  "writerUri": "mongodb://${WRITER_USER}:${WRITER_PASS}@localhost:${PORT:-27017}/$DB"
+  "readerUri": "mongodb://${READER_USER}:${READER_PASS}@localhost:${PORT:-27017}/$DB${TLS_URI_PARAM}",
+  "writerUri": "mongodb://${WRITER_USER}:${WRITER_PASS}@localhost:${PORT:-27017}/$DB${TLS_URI_PARAM}"
 }
 EOF
 
