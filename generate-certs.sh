@@ -27,14 +27,17 @@ log_warning() {
 }
 
 CERTS_DIR="./certs"
-DAYS_VALID=365
-HOSTNAME=${1:-localhost}
-EXTERNAL_IP=${2:-$(
-    ip -4 addr show scope global 2>/dev/null | grep -oP 'inet \K[\d.]+' | head -1 ||
-    hostname -I 2>/dev/null | awk '{print $1}' ||
-    curl -4 -s --max-time 3 ifconfig.me 2>/dev/null ||
-    echo ""
-)}
+
+# Load from .env if exists
+[ -f .env ] && source .env
+
+DAYS_VALID=${CERT_DAYS:-3650}
+HOSTNAME=${1:-${CERT_HOSTNAME:-localhost}}
+EXTERNAL_IP=${2:-${CERT_IP:-127.0.0.1}}
+
+[ -z "$CERT_DAYS" ] && log_warning "CERT_DAYS not set, using default: $DAYS_VALID"
+[ -z "$1" ] && [ -z "$CERT_HOSTNAME" ] && log_warning "CERT_HOSTNAME not set, using default: $HOSTNAME"
+[ -z "$2" ] && [ -z "$CERT_IP" ] && log_warning "CERT_IP not set, using default: $EXTERNAL_IP"
 
 if [ -d "$CERTS_DIR" ] && [ -f "$CERTS_DIR/mongodb.pem" ]; then
     log_error "Certificates already exist in $CERTS_DIR"
@@ -56,6 +59,12 @@ openssl req -new -x509 -days $DAYS_VALID -key "$CERTS_DIR/ca.key" \
 log_info "Generating server certificate for hostname: $HOSTNAME"
 openssl genrsa -out "$CERTS_DIR/server.key" 4096 2>/dev/null
 
+ALT_NAMES="DNS.1 = $HOSTNAME
+DNS.2 = localhost
+DNS.3 = mongodb
+IP.1 = 127.0.0.1
+IP.2 = $EXTERNAL_IP"
+
 cat > "$CERTS_DIR/server.cnf" << EOF
 [req]
 distinguished_name = req_distinguished_name
@@ -71,11 +80,7 @@ extendedKeyUsage = serverAuth, clientAuth
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = $HOSTNAME
-DNS.2 = localhost
-DNS.3 = mongodb
-IP.1 = 127.0.0.1
-IP.2 = $EXTERNAL_IP
+$ALT_NAMES
 EOF
 
 openssl req -new -key "$CERTS_DIR/server.key" \

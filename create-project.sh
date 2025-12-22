@@ -62,7 +62,7 @@ source .env
 TLS_OPTS=""
 TLS_URI_PARAM=""
 if [ "$TLS_ENABLED" = "true" ]; then
-    TLS_OPTS="--tls --tlsCAFile /certs/ca.crt --tlsAllowInvalidHostnames"
+    TLS_OPTS="--tls --tlsCAFile /certs/ca.crt"
     TLS_URI_PARAM="?tls=true"
     log_info "TLS mode enabled"
 fi
@@ -116,7 +116,7 @@ if [ "$READER_EXISTS" = true ] || [ "$WRITER_EXISTS" = true ]; then
         echo "   cat ${PROJECT}.json"
         echo ""
         echo "4. Manually delete users:"
-        echo "   docker exec -i mongodb mongosh -u $ROOT_NAME -p '$ROOT_PASSWORD' <<EOF"
+        echo "   docker exec -i mongodb mongosh -u $ROOT_NAME -p '$ROOT_PASSWORD' $TLS_OPTS <<EOF"
         echo "   use('$DB')"
         [ "$READER_EXISTS" = true ] && echo "   db.dropUser('$READER_USER')"
         [ "$WRITER_EXISTS" = true ] && echo "   db.dropUser('$WRITER_USER')"
@@ -154,6 +154,11 @@ EOF
 
 log_success "Database '$DB' created with users"
 
+# Get CA certificate base64 if TLS enabled
+if [ "$TLS_ENABLED" = "true" ] && [ -f "./certs/ca.crt" ]; then
+    CA_BASE64=$(base64 -w0 ./certs/ca.crt 2>/dev/null || base64 ./certs/ca.crt | tr -d '\n')
+fi
+
 # Save credentials to .env
 log_info "Saving credentials to ${PROJECT}.env..."
 cat > ${PROJECT}.env << EOF
@@ -171,16 +176,33 @@ WRITER_USER=$WRITER_USER
 WRITER_PASSWORD=$WRITER_PASS
 EOF
 
+# Add CA to .env if TLS enabled
+if [ -n "$CA_BASE64" ]; then
+    echo "" >> ${PROJECT}.env
+    echo "# TLS Certificate Authority (base64)" >> ${PROJECT}.env
+    echo "CA_BASE64=$CA_BASE64" >> ${PROJECT}.env
+fi
+
 log_success "Credentials saved to ${PROJECT}.env"
 
 # Save credentials to JSON
 log_info "Saving credentials to ${PROJECT}.json..."
+if [ -n "$CA_BASE64" ]; then
+cat > ${PROJECT}.json << EOF
+{
+  "readerUri": "mongodb://${READER_USER}:${READER_PASS}@localhost:${PORT:-27017}/$DB${TLS_URI_PARAM}",
+  "writerUri": "mongodb://${WRITER_USER}:${WRITER_PASS}@localhost:${PORT:-27017}/$DB${TLS_URI_PARAM}",
+  "caBase64": "$CA_BASE64"
+}
+EOF
+else
 cat > ${PROJECT}.json << EOF
 {
   "readerUri": "mongodb://${READER_USER}:${READER_PASS}@localhost:${PORT:-27017}/$DB${TLS_URI_PARAM}",
   "writerUri": "mongodb://${WRITER_USER}:${WRITER_PASS}@localhost:${PORT:-27017}/$DB${TLS_URI_PARAM}"
 }
 EOF
+fi
 
 log_success "Credentials saved to ${PROJECT}.json"
 
